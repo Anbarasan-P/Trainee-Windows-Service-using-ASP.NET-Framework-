@@ -17,18 +17,21 @@ namespace TraineeService
         {
             try
             {
-                WriteToFile("Service is started at " + DateTime.Now);
+                WriteToFile("Service started: " + DateTime.Now);
                 timer = new Timer();
-                timer.Interval = 5000;
+                timer.Interval = 60000; // 10 minutes
                 timer.Elapsed += OnElapsedTime;
-                timer.Start();
+                timer.AutoReset = true;
+                timer.Enabled = true;
+                WriteToFile("Timer started.");
             }
             catch (Exception ex)
             {
-                System.IO.File.AppendAllText(@"C:\TraineeServiceLog.txt", $"{DateTime.Now}: ERROR in OnStart - {ex}\r\n");
+                System.IO.File.AppendAllText(@"D:\TraineeServiceErrorLog.txt", $"{DateTime.Now}: Error in OnStart - {ex.Message}\r\n");
                 throw;
             }
         }
+
 
         protected override void OnStop()
         {
@@ -44,9 +47,17 @@ namespace TraineeService
 
         private void OnElapsedTime(object source, ElapsedEventArgs e)
         {
-            BackupManager backupManager = new BackupManager();
-            backupManager.BackupTraineeTable();
+            try
+            {
+                BackupManager backupManager = new BackupManager();
+                backupManager.BackupTraineeTable();
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.AppendAllText(@"D:\TraineeServiceBackupErrorLog.txt", $"[{DateTime.Now}] Error in OnElapsedTime: {ex}\r\n");
+            }
         }
+
     }
 
 }

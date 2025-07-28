@@ -2,7 +2,6 @@
 using System.Data;
 using System.Data.SqlClient;
 
-
 namespace TraineeService
 {
     public class BackupManager
@@ -17,8 +16,7 @@ namespace TraineeService
                 {
                     connection.Open();
 
-                    // 1. Create backup table if not exists
-                    string createBackupTable = @"
+                    string createBackupTableQuery = @"
                     IF OBJECT_ID('TraineesBackup', 'U') IS NULL
                     BEGIN
                         CREATE TABLE TraineesBackup (
@@ -32,18 +30,18 @@ namespace TraineeService
                             Photo VARBINARY(MAX)
                         )
                     END";
-                    using (SqlCommand command = new SqlCommand(createBackupTable, connection))
+
+                    using (SqlCommand command = new SqlCommand(createBackupTableQuery, connection))
                     {
                         command.ExecuteNonQuery();
                     }
 
-
-                    // 2. Get Trainees data
                     SqlDataAdapter dataAdapter = new SqlDataAdapter("SELECT * FROM Trainees", connection);
                     DataTable dataTrainees = new DataTable();
                     dataAdapter.Fill(dataTrainees);
 
-                    
+                    System.IO.File.AppendAllText(@"D:\TraineeServiceDebugLog.txt", $"Rows in main table: {dataTrainees.Rows.Count}\r\n");
+
                     foreach (DataRow row in dataTrainees.Rows)
                     {
                         int traineeId = Convert.ToInt32(row["TraineeID"]);
@@ -55,16 +53,22 @@ namespace TraineeService
                         string gender = row["Gender"].ToString();
                         byte[] photo = row["Photo"] == DBNull.Value ? null : (byte[])row["Photo"];
 
+                        System.IO.File.AppendAllText(@"D:\DebugPhotoNull.txt",
+                            $"TraineeID:{traineeId} | Photo is null: {(photo == null ? "YES" : "NO")}\r\n");
+
                         SqlCommand checkCommand = new SqlCommand(
                             "SELECT COUNT(*) FROM TraineesBackup WHERE TraineeID=@TraineeID", connection);
                         checkCommand.Parameters.AddWithValue("@TraineeID", traineeId);
-
                         int rowExists = (int)checkCommand.ExecuteScalar();
+
                         if (rowExists == 0)
                         {
-                            SqlCommand insertCommand = new SqlCommand(
-                                @"INSERT INTO TraineesBackup (TraineeID, Name, Email, PhoneNumber, Department, JoiningDate, Gender, Photo)
-                                  VALUES (@TraineeID, @Name, @Email, @PhoneNumber, @Department, @JoiningDate, @Gender, @Photo)", connection);
+                            SqlCommand insertCommand = new SqlCommand(@"
+                                INSERT INTO TraineesBackup 
+                                (TraineeID, Name, Email, PhoneNumber, Department, JoiningDate, Gender, Photo)
+                                VALUES 
+                                (@TraineeID, @Name, @Email, @PhoneNumber, @Department, @JoiningDate, @Gender, @Photo)", connection);
+
                             insertCommand.Parameters.AddWithValue("@TraineeID", traineeId);
                             insertCommand.Parameters.AddWithValue("@Name", name);
                             insertCommand.Parameters.AddWithValue("@Email", email);
@@ -72,16 +76,26 @@ namespace TraineeService
                             insertCommand.Parameters.AddWithValue("@Department", department);
                             insertCommand.Parameters.AddWithValue("@JoiningDate", joiningDate);
                             insertCommand.Parameters.AddWithValue("@Gender", gender);
-                            insertCommand.Parameters.AddWithValue("@Photo", (object)photo ?? DBNull.Value);
+
+                            SqlParameter insertPhotoParam = new SqlParameter("@Photo", SqlDbType.VarBinary);
+                            insertPhotoParam.Value = (object)photo ?? DBNull.Value;
+                            insertCommand.Parameters.Add(insertPhotoParam);
+
                             insertCommand.ExecuteNonQuery();
                         }
                         else
                         {
-                            SqlCommand updateCommand = new SqlCommand(
-                                @"UPDATE TraineesBackup SET
-                                    Name=@Name, Email=@Email, PhoneNumber=@PhoneNumber,
-                                    Department=@Department, JoiningDate=@JoiningDate, Gender=@Gender, Photo=@Photo
-                                  WHERE TraineeID=@TraineeID", connection);
+                            SqlCommand updateCommand = new SqlCommand(@"
+                                UPDATE TraineesBackup SET 
+                                    Name=@Name, 
+                                    Email=@Email, 
+                                    PhoneNumber=@PhoneNumber,
+                                    Department=@Department, 
+                                    JoiningDate=@JoiningDate, 
+                                    Gender=@Gender, 
+                                    Photo=@Photo
+                                WHERE TraineeID=@TraineeID", connection);
+
                             updateCommand.Parameters.AddWithValue("@TraineeID", traineeId);
                             updateCommand.Parameters.AddWithValue("@Name", name);
                             updateCommand.Parameters.AddWithValue("@Email", email);
@@ -89,19 +103,21 @@ namespace TraineeService
                             updateCommand.Parameters.AddWithValue("@Department", department);
                             updateCommand.Parameters.AddWithValue("@JoiningDate", joiningDate);
                             updateCommand.Parameters.AddWithValue("@Gender", gender);
-                            updateCommand.Parameters.AddWithValue("@Photo", (object)photo ?? DBNull.Value);
+
+                            SqlParameter updatePhotoParam = new SqlParameter("@Photo", SqlDbType.VarBinary);
+                            updatePhotoParam.Value = (object)photo ?? DBNull.Value;
+                            updateCommand.Parameters.Add(updatePhotoParam);
+
                             updateCommand.ExecuteNonQuery();
                         }
                     }
-                }
-                System.IO.File.AppendAllText(@"D:\TraineeServiceSuccessLog.txt",
-        $"{DateTime.Now}: Backup success!\r\n");
 
+                    System.IO.File.AppendAllText(@"D:\TraineeServiceSuccessLog.txt", $"{DateTime.Now}: Backup success!\r\n");
+                }
             }
-            catch (Exception error)
+            catch (Exception ex)
             {
-                // For Debugging
-                System.IO.File.AppendAllText(@"D:\TraineeServiceErrorLog.txt", error.ToString());
+                System.IO.File.AppendAllText(@"D:\TraineeServiceErrorLog.txt", ex.ToString());
             }
         }
     }
