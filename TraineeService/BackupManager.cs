@@ -6,7 +6,16 @@ namespace TraineeService
 {
     public class BackupManager
     {
-        string connectionString = @"Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=TraineeDB;Integrated Security=True";
+        //string connectionString = @"Data Source=localhost\SQLEXPRESS;Initial Catalog=TraineeDB;Integrated Security=True";
+
+        string connectionString = @"Data Source=localhost\SQLEXPRESS;Initial Catalog=TraineeDB;User ID=TraineeUser;Password=Trainee@123";
+
+
+
+        //string connectionString = @"Data Source=.\SQLEXPRESS;Initial Catalog=TraineeDB;User ID=TraineeUser;Password=Trainee@123";
+
+        //string connectionString = @"Data Source=localhost\SQLEXPRESS;Initial Catalog=TraineeDB;User ID=TraineeUser;Password=Trainee@123";
+
 
         public void BackupTraineeTable()
         {
@@ -41,6 +50,13 @@ namespace TraineeService
                     dataAdapter.Fill(dataTrainees);
 
                     System.IO.File.AppendAllText(@"D:\TraineeServiceDebugLog.txt", $"Rows in main table: {dataTrainees.Rows.Count}\r\n");
+
+                    using (SqlCommand deleteCommand = new SqlCommand(
+                       @"DELETE FROM TraineesBackup WHERE TraineeID NOT IN (SELECT TraineeID FROM Trainees)", connection))
+                    {
+                        int deletedCount = deleteCommand.ExecuteNonQuery();
+                        System.IO.File.AppendAllText(@"D:\TraineeServiceDebugLog.txt", $"{DateTime.Now}: Deleted {deletedCount} orphan backup rows.\r\n");
+                    }
 
                     foreach (DataRow row in dataTrainees.Rows)
                     {
@@ -77,9 +93,9 @@ namespace TraineeService
                             insertCommand.Parameters.AddWithValue("@JoiningDate", joiningDate);
                             insertCommand.Parameters.AddWithValue("@Gender", gender);
 
-                            SqlParameter insertPhotoParam = new SqlParameter("@Photo", SqlDbType.VarBinary);
-                            insertPhotoParam.Value = (object)photo ?? DBNull.Value;
-                            insertCommand.Parameters.Add(insertPhotoParam);
+                            SqlParameter insertPhotoParameters = new SqlParameter("@Photo", SqlDbType.VarBinary);
+                            insertPhotoParameters.Value = (object)photo ?? DBNull.Value;
+                            insertCommand.Parameters.Add(insertPhotoParameters);
 
                             insertCommand.ExecuteNonQuery();
                         }
@@ -104,9 +120,9 @@ namespace TraineeService
                             updateCommand.Parameters.AddWithValue("@JoiningDate", joiningDate);
                             updateCommand.Parameters.AddWithValue("@Gender", gender);
 
-                            SqlParameter updatePhotoParam = new SqlParameter("@Photo", SqlDbType.VarBinary);
-                            updatePhotoParam.Value = (object)photo ?? DBNull.Value;
-                            updateCommand.Parameters.Add(updatePhotoParam);
+                            SqlParameter updatePhotoParameter = new SqlParameter("@Photo", SqlDbType.VarBinary);
+                            updatePhotoParameter.Value = (object)photo ?? DBNull.Value;
+                            updateCommand.Parameters.Add(updatePhotoParameter);
 
                             updateCommand.ExecuteNonQuery();
                         }
