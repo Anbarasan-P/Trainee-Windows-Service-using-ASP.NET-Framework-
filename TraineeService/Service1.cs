@@ -2,12 +2,12 @@
 using System.ServiceProcess;
 using System.Timers;
 
-
 namespace TraineeService
 {
     public partial class Service1 : ServiceBase
     {
         Timer timer;
+
         public Service1()
         {
             InitializeComponent();
@@ -18,24 +18,27 @@ namespace TraineeService
             try
             {
                 WriteToFile("Service started: " + DateTime.Now);
+
                 timer = new Timer();
-                timer.Interval = 60000; // 10 minutes
+                timer.Interval = 600000; // 10 minutes
                 timer.Elapsed += OnElapsedTime;
                 timer.AutoReset = true;
                 timer.Enabled = true;
+
                 WriteToFile("Timer started.");
+                BackupManager backupManager = new BackupManager();
+                backupManager.BackupTraineeTable();
             }
-            catch (Exception ex)
+            catch (Exception error)
             {
-                System.IO.File.AppendAllText(@"D:\TraineeServiceErrorLog.txt", $"{DateTime.Now}: Error in OnStart - {ex.Message}\r\n");
+                System.IO.File.AppendAllText(@"D:\TraineeServiceErrorLog.txt", $"{DateTime.Now}: Error in OnStart - {error.Message}\r\n");
                 throw;
             }
         }
 
-
         protected override void OnStop()
         {
-            WriteToFile("Service is stopped at "+ DateTime.Now);
+            WriteToFile("Service is stopped at " + DateTime.Now);
             timer.Stop();
         }
 
@@ -52,12 +55,10 @@ namespace TraineeService
                 BackupManager backupManager = new BackupManager();
                 backupManager.BackupTraineeTable();
             }
-            catch (Exception ex)
+            catch (Exception error)
             {
-                System.IO.File.AppendAllText(@"D:\TraineeServiceBackupErrorLog.txt", $"[{DateTime.Now}] Error in OnElapsedTime: {ex}\r\n");
+                System.IO.File.AppendAllText(@"D:\TraineeServiceBackupErrorLog.txt", $"[{DateTime.Now}] Error in OnElapsedTime: {error}\r\n");
             }
         }
-
     }
-
 }
